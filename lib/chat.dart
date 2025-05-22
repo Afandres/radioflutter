@@ -2,9 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart'; // Importa SharedPreferences
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:intl/intl.dart'; // <-- Importa intl para formato de hora
 
-// Modelo de mensaje ajustado a tu JSON
 class ChatMessage {
   final String message;
   final DateTime timestamp;
@@ -25,10 +25,8 @@ class ChatMessage {
   }
 }
 
-// Servicio para interactuar con la API
 class ChatService {
-  final String baseUrl =
-      'http://192.168.100.147:8081/api'; // Cambia esto por tu dominio real
+  final String baseUrl = 'http://vps-fd00e51b.vps.ovh.ca/api';
 
   Future<List<ChatMessage>> getMessages() async {
     final response = await http.get(Uri.parse('$baseUrl/messages'));
@@ -55,7 +53,6 @@ class ChatService {
   }
 }
 
-// Pantalla del chat
 class ChatScreen extends StatefulWidget {
   @override
   _ChatScreenState createState() => _ChatScreenState();
@@ -67,14 +64,13 @@ class _ChatScreenState extends State<ChatScreen> {
   List<ChatMessage> _messages = [];
   bool _loading = true;
   Timer? _timer;
-  String _user = 'Anonimo'; // Valor por defecto
+  String _user = 'Anonimo';
 
   @override
   void initState() {
     super.initState();
     _loadUserFromPreferences().then((_) {
       _loadMessages();
-
       _timer = Timer.periodic(Duration(seconds: 10), (timer) {
         _loadMessages();
       });
@@ -89,8 +85,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _loadUserFromPreferences() async {
     final prefs = await SharedPreferences.getInstance();
-    final user = prefs.getString('username') ??
-        'Anonimo'; // Cambia 'username' por la key que usas
+    final user = prefs.getString('username') ?? 'Anonimo';
     setState(() {
       _user = user;
     });
@@ -143,8 +138,9 @@ class _ChatScreenState extends State<ChatScreen> {
                     itemCount: _messages.length,
                     itemBuilder: (context, index) {
                       final message = _messages[index];
-                      final formattedTime =
-                          "${message.timestamp.hour.toString().padLeft(2, '0')}:${message.timestamp.minute.toString().padLeft(2, '0')}";
+                      final formattedTime = DateFormat('hh:mm a')
+                          .format(message.timestamp); // <-- AM/PM
+
                       return ListTile(
                         title: Text(message.message),
                         subtitle: Text('${message.user} • $formattedTime'),

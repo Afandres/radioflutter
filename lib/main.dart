@@ -19,9 +19,9 @@ class _RadioAppState extends State<RadioApp> {
   bool _isPlaying = false;
   bool _isLoading = true;
   bool _isConnected = true;
+  bool _isBuffering = false;
   String? _username;
-  final String streamUrl = "http://192.168.57.128:8000/stream";
-
+  final String streamUrl = "http://vps-fd00e51b.vps.ovh.ca:8000/stream";
   final TextEditingController _nameController = TextEditingController();
 
   @override
@@ -69,16 +69,35 @@ class _RadioAppState extends State<RadioApp> {
   }
 
   void _playPause() async {
+    setState(() {
+      _isBuffering = true;
+    });
+
     if (_isPlaying) {
       await _audioPlayer.stop();
       await _audioPlayer.release();
+      setState(() {
+        _isPlaying = false;
+        _isBuffering = false;
+      });
     } else {
-      await _audioPlayer.setSourceUrl(streamUrl);
-      await _audioPlayer.resume();
+      try {
+        await _audioPlayer.setSourceUrl(streamUrl);
+        await _audioPlayer.resume();
+        setState(() {
+          _isPlaying = true;
+        });
+      } catch (e) {
+        print("Error al reproducir: $e");
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("No se pudo conectar al stream.")),
+        );
+      } finally {
+        setState(() {
+          _isBuffering = false;
+        });
+      }
     }
-    setState(() {
-      _isPlaying = !_isPlaying;
-    });
   }
 
   @override
@@ -104,7 +123,6 @@ class _RadioAppState extends State<RadioApp> {
       );
     }
 
-    // Si no hay nombre, mostrar pantalla para pedirlo
     if (_username == null || _username!.isEmpty) {
       return MaterialApp(
         debugShowCheckedModeBanner: false,
@@ -141,7 +159,10 @@ class _RadioAppState extends State<RadioApp> {
                   ),
                   child: Text(
                     "Guardar",
-                    style: TextStyle(fontSize: 18),
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ],
@@ -151,12 +172,12 @@ class _RadioAppState extends State<RadioApp> {
       );
     }
 
-    // Si ya hay nombre, mostrar radio
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       home: RadioScreen(
         playPause: _playPause,
         isPlaying: _isPlaying,
+        isBuffering: _isBuffering,
         username: _username!,
       ),
     );
@@ -193,11 +214,13 @@ class SplashScreen extends StatelessWidget {
 class RadioScreen extends StatelessWidget {
   final VoidCallback playPause;
   final bool isPlaying;
+  final bool isBuffering;
   final String username;
 
   RadioScreen({
     required this.playPause,
     required this.isPlaying,
+    required this.isBuffering,
     required this.username,
   });
 
@@ -250,18 +273,24 @@ class RadioScreen extends StatelessWidget {
             ),
             SizedBox(height: 20),
             ElevatedButton(
-              onPressed: playPause,
+              onPressed: isBuffering ? null : playPause,
               style: ElevatedButton.styleFrom(
                 shape: CircleBorder(),
                 padding: EdgeInsets.all(20),
                 backgroundColor: Colors.green.shade900,
                 elevation: 10,
               ),
-              child: Icon(
-                isPlaying ? Icons.pause : Icons.play_arrow,
-                size: 60,
-                color: Colors.white,
-              ),
+              child: isBuffering
+                  ? SizedBox(
+                      height: 30,
+                      width: 30,
+                      child: CircularProgressIndicator(color: Colors.white),
+                    )
+                  : Icon(
+                      isPlaying ? Icons.pause : Icons.play_arrow,
+                      size: 60,
+                      color: Colors.white,
+                    ),
             ),
             SizedBox(height: 30),
             Row(
@@ -276,8 +305,7 @@ class RadioScreen extends StatelessWidget {
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green.shade800,
-                    padding:
-                        EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(30),
                     ),
@@ -300,8 +328,7 @@ class RadioScreen extends StatelessWidget {
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green.shade600,
-                    padding:
-                        EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(30),
                     ),

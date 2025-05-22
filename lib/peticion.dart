@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart'; // Importa SharedPreferences
+import 'package:intl/intl.dart'; // Para formatear la hora
+import 'package:shared_preferences/shared_preferences.dart';
 
 class PeticionFormScreen extends StatefulWidget {
   @override
@@ -23,8 +24,7 @@ class _PeticionFormScreenState extends State<PeticionFormScreen> {
 
   Future<void> _loadUserName() async {
     final prefs = await SharedPreferences.getInstance();
-    final user = prefs.getString('username') ??
-        'Anonimo'; // Cambia 'username' si usas otra clave
+    final user = prefs.getString('username') ?? 'Anonimo';
     setState(() {
       _userName = user;
     });
@@ -35,26 +35,36 @@ class _PeticionFormScreenState extends State<PeticionFormScreen> {
 
     setState(() => _isSubmitting = true);
 
-    final url = Uri.parse('http://192.168.100.147:8081/api/request');
+    final now = DateTime.now().toLocal(); // Hora local de Colombia
+    final horaFormateada = DateFormat.Hms().format(now); // '16:25:30'
+    final timestamp = now.millisecondsSinceEpoch ~/ 1000; // En segundos
+
+    final url = Uri.parse('http://vps-fd00e51b.vps.ovh.ca/api/request');
 
     final response = await http.post(
       url,
       body: {
-        'name': _userName, // Aquí enviamos el usuario guardado
+        'name': _userName,
         'title': _titleController.text,
         'artist': _artistController.text,
+        'hora': horaFormateada,
+        'timestamp': timestamp.toString(),
       },
     );
 
     setState(() => _isSubmitting = false);
 
     if (response.statusCode == 200 || response.statusCode == 201) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Petición enviada')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Petición enviada')),
+      );
       _formKey.currentState!.reset();
+      _titleController.clear();
+      _artistController.clear();
     } else {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Error al enviar')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al enviar')),
+      );
     }
   }
 
@@ -62,15 +72,15 @@ class _PeticionFormScreenState extends State<PeticionFormScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-          title: Text("Petición de Canción"),
-          backgroundColor: Colors.green.shade900),
+        title: Text("Petición de Canción"),
+        backgroundColor: Colors.green.shade900,
+      ),
       body: Padding(
         padding: EdgeInsets.all(20),
         child: Form(
           key: _formKey,
           child: Column(
             children: [
-              // El campo de nombre se eliminó
               TextFormField(
                 controller: _titleController,
                 decoration: InputDecoration(labelText: "Título de la canción"),
